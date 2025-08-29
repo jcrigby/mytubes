@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyTubes</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    .video-card { display: inline-block; width: 220px; margin: 10px; vertical-align: top; }
+    .video-card img { width: 100%; height: auto; }
+    .video-card h3 { font-size: 1em; margin: 0.5em 0; }
+    .video-card p { font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Latest Videos</h1>
+  <div id="videos"></div>
+  <script>
+    fetch('videos.json')
+      .then(response => response.json())
+      .then(videos => {
+        const container = document.getElementById('videos');
+        videos.forEach(v => {
+          const card = document.createElement('div');
+          card.className = 'video-card';
+          card.innerHTML = `
+            <a href="${v.link}">
+              <img src="${v.thumbnail}" alt="${v.title}">
+            </a>
+            <h3>${v.title}</h3>
+            <p>${v.channel}</p>
+            ${v.synopsis ? `<p>${v.synopsis}</p>` : ''}
+          `;
+          container.appendChild(card);
+        });
+      });
+  </script>
+</body>
+</html>
