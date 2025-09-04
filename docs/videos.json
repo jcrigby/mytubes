@@ -1,0 +1,21 @@
+{
+    "last_updated_utc": "2025-09-04T01:40:58.442705+00:00",
+    "videos": [
+        {
+            "title": "Dummy Video 1: A Great Presentation",
+            "url": "https://www.youtube.com/",
+            "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+            "upload_date": "2025-09-02T10:00:00Z",
+            "channel_name": "Google for Developers",
+            "duration": "10:42"
+        },
+        {
+            "title": "Dummy Video 2: Exploring New Features",
+            "url": "https://www.youtube.com/",
+            "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+            "upload_date": "2025-09-01T12:30:00Z",
+            "channel_name": "Python Software Foundation",
+            "duration": "15:05"
+        }
+    ]
+}

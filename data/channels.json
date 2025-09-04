@@ -1,0 +1,16 @@
+{
+  "channels": [
+    {
+      "name": "Google for Developers",
+      "channel_id": "UCUZHFZ9jIKrLroW8LcyJEQQ",
+      "handle": "@GoogleforDevelopers",
+      "description": "The official YouTube channel for Google. Subscribe to get the latest developer news, best practices, and events."
+    },
+    {
+      "name": "Python Software Foundation",
+      "channel_id": "UCUAVDPguRzqHySnZw64CcOg",
+      "handle": "@ThePSF",
+      "description": "The Python Software Foundation (PSF) is a non-profit that holds the intellectual property rights behind Python and runs PyCon US."
+    }
+  ]
+}

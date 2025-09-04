@@ -1,0 +1,37 @@
+name: Update Latest YouTube Videos
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    - cron: '0 */6 * * *' # Runs every 6 hours
+
+jobs:
+  update-videos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip' # Caches dependencies for faster builds
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch Latest Videos
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python scripts/fetch_latest_videos.py
+
+      - name: Commit and push if data changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: Update latest videos'
+          file_pattern: 'docs/videos.json'
+          commit_user_name: 'GitHub Actions Bot'
+          commit_user_email: 'actions@github.com'
+          commit_author: 'GitHub Actions Bot <actions@github.com>'
