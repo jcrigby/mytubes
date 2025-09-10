@@ -1,6 +1,14 @@
 {
-    "last_updated_utc": "2025-09-10T06:11:02.385787+00:00",
+    "last_updated_utc": "2025-09-10T12:12:16.438789+00:00",
     "videos": [
+        {
+            "title": "\u4e38\u68d2\u6cbb\u51778\u9078\u3000Tips and tricks for woodworking and how to make jigs",
+            "url": "https://www.youtube.com/watch?v=n3U1kn1mW9A",
+            "thumbnail_url": "https://i.ytimg.com/vi/n3U1kn1mW9A/hqdefault.jpg",
+            "upload_date": "2025-09-10T09:16:09Z",
+            "channel_name": "JSK-koubou",
+            "duration": "34:11"
+        },
         {
             "title": "PSF Board Election 2025 | Nominee's Areas of Involvement in the PSF",
             "url": "https://www.youtube.com/watch?v=sH25nWwP--c",
@@ -72,14 +80,6 @@
             "upload_date": "2025-07-04T12:53:31Z",
             "channel_name": "JSK-koubou",
             "duration": "22:44"
-        },
-        {
-            "title": "\u4e38\u92f8\u30fb\u30eb\u30fc\u30bf\u30fc\u30fb\u30b8\u30b0\u30bd\u30fc\u3092\u4fbf\u5229\u306b\u4f7f\u30469 in 1\u6cbb\u5177\u88fd\u4f5c",
-            "url": "https://www.youtube.com/watch?v=zmbhsUIJj7g",
-            "thumbnail_url": "https://i.ytimg.com/vi/zmbhsUIJj7g/hqdefault.jpg",
-            "upload_date": "2025-06-20T14:01:15Z",
-            "channel_name": "JSK-koubou",
-            "duration": "29:34"
         }
     ]
 }
