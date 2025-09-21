@@ -1,6 +1,14 @@
 {
-    "last_updated_utc": "2025-09-21T12:11:12.648932+00:00",
+    "last_updated_utc": "2025-09-21T18:08:50.793940+00:00",
     "videos": [
+        {
+            "title": "\u7c21\u5358\u30fb\u4fbf\u5229\uff0110\u79d2\u3067\u9ad8\u7cbe\u5ea6\u306e\u307b\u305e\u52a0\u5de5\u304c\u3067\u304d\u308b\u6cbb\u5177\uff01",
+            "url": "https://www.youtube.com/watch?v=QZ5yDDkXEYs",
+            "thumbnail_url": "https://i.ytimg.com/vi/QZ5yDDkXEYs/hqdefault.jpg",
+            "upload_date": "2025-09-21T12:17:32Z",
+            "channel_name": "JSK-koubou",
+            "duration": "31:50"
+        },
         {
             "title": "\u4e38\u68d2\u6cbb\u51778\u9078\u3000Tips and tricks for woodworking and how to make jigs",
             "url": "https://www.youtube.com/watch?v=n3U1kn1mW9A",
@@ -72,14 +80,6 @@
             "upload_date": "2025-07-19T09:33:45Z",
             "channel_name": "JSK-koubou",
             "duration": "35:15"
-        },
-        {
-            "title": "\u30eb\u30fc\u30bf\u30fc\u306e\u52a0\u5de5\u7cbe\u5ea6\u304c\u98db\u8e8d\u7684\u306b\u5411\u4e0a\u3059\u308b\u88c5\u7f6e",
-            "url": "https://www.youtube.com/watch?v=AX4vlfCDa10",
-            "thumbnail_url": "https://i.ytimg.com/vi/AX4vlfCDa10/hqdefault.jpg",
-            "upload_date": "2025-07-04T12:53:31Z",
-            "channel_name": "JSK-koubou",
-            "duration": "22:44"
         }
     ]
 }
