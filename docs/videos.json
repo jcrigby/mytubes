@@ -1,6 +1,14 @@
 {
-    "last_updated_utc": "2025-10-07T06:11:00.804989+00:00",
+    "last_updated_utc": "2025-10-07T12:13:35.979632+00:00",
     "videos": [
+        {
+            "title": "\u8d85\u30b7\u30f3\u30d7\u30eb\u3067\u753b\u671f\u7684\u306a\u30eb\u30fc\u30bf\u30fc\u6607\u964d\u30b7\u30b9\u30c6\u30e0",
+            "url": "https://www.youtube.com/watch?v=zL0SsC3Rkak",
+            "thumbnail_url": "https://i.ytimg.com/vi/zL0SsC3Rkak/hqdefault.jpg",
+            "upload_date": "2025-10-07T11:01:25Z",
+            "channel_name": "JSK-koubou",
+            "duration": "15:54"
+        },
         {
             "title": "\u308f\u305a\u304b10\u79d2\u3067\u4f5c\u308c\u308b\u5b8c\u74a7\u306a\u6728\u7d44\u307f",
             "url": "https://www.youtube.com/watch?v=QZ5yDDkXEYs",
@@ -72,14 +80,6 @@
             "upload_date": "2025-08-05T09:19:11Z",
             "channel_name": "JSK-koubou",
             "duration": "18:31"
-        },
-        {
-            "title": "\u5fc5\u898b\uff01\u30eb\u30fc\u30bf\u30fc\u304c\u4fbf\u5229\u306b\u306a\u308b\u9b54\u6cd5\u306e15\u30c6\u30af\u30cb\u30c3\u30af",
-            "url": "https://www.youtube.com/watch?v=S0e0xNEMVH0",
-            "thumbnail_url": "https://i.ytimg.com/vi/S0e0xNEMVH0/hqdefault.jpg",
-            "upload_date": "2025-07-19T09:33:45Z",
-            "channel_name": "JSK-koubou",
-            "duration": "35:15"
         }
     ]
 }
