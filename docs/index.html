@@ -30,6 +30,7 @@
                 <button id="refresh-btn" class="icon-btn" title="Refresh videos">&#x21bb;</button>
                 <img id="user-avatar" class="user-avatar" src="" alt="User" title="Signed in">
                 <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+                <button id="chat-toggle-btn" class="icon-btn" title="AI Chat">&#x1F4AC;</button>
                 <button id="sign-out-btn" class="icon-btn" title="Sign out">&#x2192;</button>
             </div>
         </header>
@@ -45,6 +46,25 @@
         <footer>
             <p>Powered by the YouTube Data API</p>
         </footer>
+
+        <!-- Chat panel -->
+        <div id="chat-panel" class="chat-panel">
+            <div class="chat-header">
+                <span>AI Category Manager</span>
+                <button id="chat-close-btn" class="chat-close">&times;</button>
+            </div>
+            <div id="chat-connect" class="chat-connect">
+                <p>Connect to OpenRouter to use AI-powered category management.</p>
+                <button id="chat-connect-btn" class="action-btn">Connect OpenRouter</button>
+            </div>
+            <div id="chat-body" class="chat-body" style="display: none;">
+                <div id="chat-messages" class="chat-messages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-input" placeholder="e.g. create a category called Woodworking...">
+                    <button id="chat-send-btn" class="action-btn">Send</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Settings modal -->
@@ -78,6 +98,18 @@
                 <button id="resync-subs-btn" class="action-btn">Re-sync Subscriptions</button>
                 <button id="clear-cache-btn" class="action-btn secondary">Clear Cache</button>
                 <p id="sync-status" class="settings-status"></p>
+            </div>
+
+            <div class="settings-section">
+                <h3>OpenRouter AI</h3>
+                <p class="settings-note">Connect to OpenRouter to manage categories via AI chat</p>
+                <div id="openrouter-settings">
+                    <button id="openrouter-connect-btn" class="action-btn">Connect OpenRouter</button>
+                    <div id="openrouter-connected" style="display: none;">
+                        <span class="openrouter-status">Connected</span>
+                        <button id="openrouter-disconnect-btn" class="action-btn secondary">Disconnect</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

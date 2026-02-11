@@ -4,6 +4,12 @@ const GOOGLE_CLIENT_ID = '339196755594-oajh6pqn0o178o9ipsvg7d7r86dg2sv5.apps.goo
 const YOUTUBE_API = 'https://www.googleapis.com/youtube/v3';
 const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
+// OpenRouter
+const OPENROUTER_AUTH_URL = 'https://openrouter.ai/auth';
+const OPENROUTER_TOKEN_URL = 'https://openrouter.ai/api/v1/auth/keys';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_MODEL = 'anthropic/claude-sonnet-4';
+
 // Cache TTLs
 const SUBSCRIPTIONS_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const VIDEOS_TTL = 30 * 60 * 1000; // 30 minutes
@@ -16,6 +22,7 @@ let allVideos = []; // video objects from YouTube API
 let categories = { categories: [] }; // { categories: [{ id, name, channelIds }] }
 let activeCategory = 'all';
 let searchQuery = '';
+let chatMessages = []; // { role: 'user'|'assistant', content: string }
 
 // ==================== OAuth Module ====================
 
@@ -98,6 +105,85 @@ async function apiRequest(url) {
         throw new Error(err.error?.message || `API error: ${response.status}`);
     }
     return response.json();
+}
+
+// ==================== OpenRouter OAuth PKCE ====================
+
+function generateCodeVerifier() {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode.apply(null, array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+async function generateCodeChallenge(verifier) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(hash)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+async function startOpenRouterAuth() {
+    const codeVerifier = generateCodeVerifier();
+    sessionStorage.setItem('openrouter_code_verifier', codeVerifier);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const callbackUrl = window.location.origin + window.location.pathname;
+    const authUrl = `${OPENROUTER_AUTH_URL}?callback_url=${encodeURIComponent(callbackUrl)}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    window.location.href = authUrl;
+}
+
+async function handleOpenRouterCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (!code) return false;
+
+    const codeVerifier = sessionStorage.getItem('openrouter_code_verifier');
+    if (!codeVerifier) {
+        console.error('No code verifier found');
+        return false;
+    }
+
+    try {
+        const response = await fetch(OPENROUTER_TOKEN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: code,
+                code_verifier: codeVerifier,
+                code_challenge_method: 'S256'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Token exchange failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.key) {
+            localStorage.setItem('openrouter_key', data.key);
+            sessionStorage.removeItem('openrouter_code_verifier');
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            return true;
+        }
+    } catch (err) {
+        console.error('OpenRouter OAuth callback error:', err);
+    }
+
+    return false;
+}
+
+function isOpenRouterConnected() {
+    return !!localStorage.getItem('openrouter_key');
+}
+
+function disconnectOpenRouter() {
+    localStorage.removeItem('openrouter_key');
 }
 
 // ==================== YouTube API Module ====================
@@ -717,6 +803,7 @@ function escapeHtml(text) {
 function renderSettingsModal() {
     renderCategoryList();
     renderChannelAssignments();
+    updateOpenRouterSettings();
 }
 
 function renderCategoryList() {
@@ -801,6 +888,216 @@ function renderChannelAssignments() {
             renderVideos();
         });
     });
+}
+
+// ==================== Chat / AI Category Management ====================
+
+function buildCategorySystemPrompt() {
+    const catList = categories.categories.map(c =>
+        `- "${c.name}" (id: ${c.id}, ${c.channelIds.length} channels)`
+    ).join('\n') || '(none)';
+
+    const subList = allSubscriptions.map(s => {
+        const cat = getCategoryForChannel(s.channelId);
+        const catLabel = cat ? `${cat.name} (${cat.id})` : 'Uncategorized';
+        return `- ${s.title} (id: ${s.channelId}) → ${catLabel}`;
+    }).join('\n') || '(none)';
+
+    return `You are an AI assistant that manages YouTube subscription categories for the MyTubes app.
+
+Current categories:
+${catList}
+
+Current subscriptions and their category assignments:
+${subList}
+
+When the user asks you to manage categories, respond with:
+1. A brief human-readable explanation of what you're doing.
+2. A JSON action block fenced with \`\`\`actions ... \`\`\` containing an array of operations.
+
+Available actions:
+- {"action": "create_category", "name": "Category Name"}
+- {"action": "delete_category", "id": "category-id"}
+- {"action": "rename_category", "id": "category-id", "name": "New Name"}
+- {"action": "assign_channels", "channelIds": ["UC..."], "categoryId": "category-id"}
+
+Rules:
+- Category IDs are lowercase with hyphens (e.g. "woodworking", "diy-home").
+- When assigning channels, use the exact channel IDs from the subscription list.
+- When moving channels to a new category, create it first if it doesn't exist.
+- You can include multiple actions in one block. They execute in order.
+- If the user asks a question that doesn't require changes, just answer without an action block.
+- Be concise in your explanations.`;
+}
+
+function updateChatUI() {
+    const connected = isOpenRouterConnected();
+    const connectDiv = document.getElementById('chat-connect');
+    const bodyDiv = document.getElementById('chat-body');
+
+    if (connected) {
+        connectDiv.style.display = 'none';
+        bodyDiv.style.display = 'flex';
+    } else {
+        connectDiv.style.display = 'block';
+        bodyDiv.style.display = 'none';
+    }
+}
+
+function updateOpenRouterSettings() {
+    const connected = isOpenRouterConnected();
+    document.getElementById('openrouter-connect-btn').style.display = connected ? 'none' : 'inline-block';
+    document.getElementById('openrouter-connected').style.display = connected ? 'flex' : 'none';
+}
+
+function addChatMessage(role, text) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function parseActions(responseText) {
+    const match = responseText.match(/```actions\s*([\s\S]*?)```/);
+    if (!match) return [];
+    try {
+        return JSON.parse(match[1]);
+    } catch (e) {
+        console.error('Failed to parse actions:', e);
+        return [];
+    }
+}
+
+function extractExplanation(responseText) {
+    // Return text outside the actions fence
+    return responseText.replace(/```actions[\s\S]*?```/, '').trim();
+}
+
+function executeActions(actions) {
+    const results = [];
+    for (const act of actions) {
+        switch (act.action) {
+            case 'create_category': {
+                const cat = ensureCategory(act.name);
+                results.push(`Created category "${act.name}"`);
+                break;
+            }
+            case 'delete_category': {
+                const cat = categories.categories.find(c => c.id === act.id);
+                if (cat) {
+                    categories.categories = categories.categories.filter(c => c.id !== act.id);
+                    results.push(`Deleted category "${cat.name}"`);
+                } else {
+                    results.push(`Category "${act.id}" not found`);
+                }
+                break;
+            }
+            case 'rename_category': {
+                const cat = categories.categories.find(c => c.id === act.id);
+                if (cat) {
+                    const oldName = cat.name;
+                    cat.name = act.name;
+                    results.push(`Renamed "${oldName}" to "${act.name}"`);
+                } else {
+                    results.push(`Category "${act.id}" not found`);
+                }
+                break;
+            }
+            case 'assign_channels': {
+                const targetCat = categories.categories.find(c => c.id === act.categoryId);
+                if (targetCat) {
+                    for (const channelId of act.channelIds) {
+                        assignChannelToCategory(channelId, act.categoryId);
+                    }
+                    results.push(`Assigned ${act.channelIds.length} channel(s) to "${targetCat.name}"`);
+                } else {
+                    results.push(`Category "${act.categoryId}" not found`);
+                }
+                break;
+            }
+            default:
+                results.push(`Unknown action: ${act.action}`);
+        }
+    }
+    saveCategories();
+    renderCategoryTabs();
+    renderVideos();
+    return results;
+}
+
+async function sendChatMessage(userText) {
+    addChatMessage('user', userText);
+    chatMessages.push({ role: 'user', content: userText });
+
+    const apiKey = localStorage.getItem('openrouter_key');
+    if (!apiKey) {
+        addChatMessage('system', 'Not connected to OpenRouter.');
+        return;
+    }
+
+    // Show thinking indicator
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'chat-msg system';
+    thinkingDiv.textContent = 'Thinking...';
+    document.getElementById('chat-messages').appendChild(thinkingDiv);
+
+    try {
+        const systemPrompt = buildCategorySystemPrompt();
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            ...chatMessages
+        ];
+
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: OPENROUTER_MODEL,
+                messages: messages
+            })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const assistantText = data.choices?.[0]?.message?.content || 'No response.';
+
+        // Remove thinking indicator
+        thinkingDiv.remove();
+
+        // Parse and execute actions
+        const actions = parseActions(assistantText);
+        const explanation = extractExplanation(assistantText);
+
+        addChatMessage('assistant', explanation);
+        chatMessages.push({ role: 'assistant', content: assistantText });
+
+        if (actions.length > 0) {
+            const results = executeActions(actions);
+            addChatMessage('system', results.join('; '));
+        }
+    } catch (err) {
+        thinkingDiv.remove();
+        addChatMessage('system', `Error: ${err.message}`);
+        console.error('Chat error:', err);
+    }
+}
+
+function toggleChatPanel() {
+    const panel = document.getElementById('chat-panel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+        updateChatUI();
+        document.getElementById('chat-input').focus();
+    }
 }
 
 // ==================== Event Listeners ====================
@@ -893,18 +1190,48 @@ function setupEventListeners() {
         }
     });
 
+    // Chat panel
+    document.getElementById('chat-toggle-btn').addEventListener('click', toggleChatPanel);
+    document.getElementById('chat-close-btn').addEventListener('click', () => {
+        document.getElementById('chat-panel').classList.remove('open');
+    });
+    document.getElementById('chat-connect-btn').addEventListener('click', startOpenRouterAuth);
+    document.getElementById('chat-send-btn').addEventListener('click', () => {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        sendChatMessage(text);
+    });
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('chat-send-btn').click();
+    });
+
+    // OpenRouter settings
+    document.getElementById('openrouter-connect-btn').addEventListener('click', startOpenRouterAuth);
+    document.getElementById('openrouter-disconnect-btn').addEventListener('click', () => {
+        disconnectOpenRouter();
+        updateOpenRouterSettings();
+        updateChatUI();
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+            document.getElementById('chat-panel').classList.remove('open');
         }
     });
 }
 
 // ==================== Initialization ====================
 
-function init() {
+async function init() {
+    // Handle OpenRouter OAuth callback before other setup
+    await handleOpenRouterCallback();
+
     setupEventListeners();
+    updateOpenRouterSettings();
 
     if (isTokenValid()) {
         showApp();
