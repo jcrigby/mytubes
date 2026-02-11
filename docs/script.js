@@ -469,21 +469,16 @@ async function refreshVideos() {
 }
 
 function loadUserAvatar() {
-    // Use the Google People API to get user's profile photo
-    const token = getAccessToken();
-    if (!token) return;
-
-    fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.picture) {
-            document.getElementById('user-avatar').src = data.picture;
-            document.getElementById('user-avatar').style.display = 'block';
-        }
-    })
-    .catch(() => {});
+    // Fetch the authenticated user's YouTube channel thumbnail
+    apiRequest(`${YOUTUBE_API}/channels?part=snippet&mine=true`)
+        .then(data => {
+            const thumb = data.items?.[0]?.snippet?.thumbnails?.default?.url;
+            if (thumb) {
+                document.getElementById('user-avatar').src = thumb;
+                document.getElementById('user-avatar').style.display = 'block';
+            }
+        })
+        .catch(() => {});
 }
 
 // ==================== Auto-Suggest Categories ====================
