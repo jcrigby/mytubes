@@ -1,98 +1,79 @@
-# YouTube Channel Monitor
+# MyTubes
 
-[![Update Videos Workflow](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/actions/workflows/update-videos.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/actions/workflows/update-videos.yml)
-
-A fully automated system to monitor YouTube channels for their latest videos and display them on a static website hosted with GitHub Pages.
+A personal, distraction-free YouTube frontend that pulls your subscriptions via Google OAuth, filters out Shorts, and organizes channels into user-defined categories.
 
 ## Features
 
-- **Automated Video Fetching**: A Python script uses the YouTube Data API v3 to fetch the latest videos from a list of specified channels.
-- **Static Site Generation**: The fetched data is used to generate a clean, responsive static website.
-- **GitHub Actions Automation**: The entire process of fetching data and updating the site is automated using a GitHub Actions workflow that runs on a schedule.
-- **Easy Configuration**: Channels can be easily added or removed by editing a single JSON file.
-- **Responsive Design**: The website is designed to be mobile-friendly and easy to use on any device.
-- **Search Functionality**: The frontend includes a simple search bar to filter videos by title or channel name.
+- **OAuth-based subscriptions**: Sign in with Google to automatically pull your YouTube subscriptions — no manual channel configuration
+- **Shorts filter**: Automatically removes videos under 60 seconds and those tagged with #shorts
+- **Category organization**: Organize channels into categories (Politics, Woodworking, Software Dev, etc.) with auto-suggestions based on YouTube topic data
+- **Client-side only**: All API calls happen in the browser using your OAuth token — no backend server needed
+- **Local caching**: Subscriptions cached for 24 hours, videos for 30 minutes — minimizes API calls
+- **Dark theme**: Responsive design with a clean, focused interface
+- **Search**: Filter videos by title or channel name within any category
 
-## How It Works
+## Architecture
 
-1.  A GitHub Actions workflow runs on a schedule (every 6 hours) or can be triggered manually.
-2.  The workflow executes a Python script (`scripts/fetch_latest_videos.py`).
-3.  The script reads a list of channels from `data/channels.json`.
-4.  Using the YouTube API, it fetches the 5 latest videos from each channel.
-5.  The collected video data is saved to `docs/videos.json`.
-6.  The workflow commits the updated `videos.json` file back to the repository.
-7.  GitHub Pages automatically serves the `docs` directory, and the website's JavaScript (`docs/script.js`) reads the `videos.json` file to display the latest videos.
+Everything runs in the browser:
 
-## Setup and Deployment
+- **Google Identity Services (GIS)** for OAuth with `youtube.readonly` scope
+- **YouTube Data API v3** for subscriptions, channels, and video data
+- **localStorage** for caching (subscriptions, videos) and user data (categories, token)
+- Static site hosted on **GitHub Pages** from the `docs/` directory
 
-1.  **Fork this repository:** Create a fork of this repository to your own GitHub account.
+## Setup
 
-2.  **Enable GitHub Actions:** Ensure that GitHub Actions are enabled for your forked repository. They should be enabled by default.
+### 1. Google Cloud Console
 
-3.  **Set up GitHub Pages:**
-    - In your repository, go to `Settings` > `Pages`.
-    - Under `Build and deployment`, set the `Source` to **Deploy from a branch**.
-    - Set the `Branch` to **main** (or your default branch) and the folder to **/docs**.
-    - Click `Save`. Your site will be available at `https://<your-username>.github.io/<your-repo-name>/`.
+You need a Google Cloud project with OAuth credentials configured:
 
-4.  **Create a YouTube API Key:**
-    - You need a YouTube Data API v3 key. You can get one from the [Google Cloud Console](https://console.cloud.google.com/apis/library/youtube.googleapis.com).
-    - Make sure the API is enabled for your project.
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a project (or reuse an existing one)
+3. **Enable YouTube Data API v3**: APIs & Services > Library > search "YouTube Data API v3" > Enable
+4. **Configure OAuth consent screen**: APIs & Services > OAuth consent screen > add scope `youtube.readonly`
+5. **Create/update OAuth Client ID**: APIs & Services > Credentials > Create/edit a Web Application client
+   - Add to Authorized JavaScript origins:
+     - `https://YOUR_USERNAME.github.io` (production)
+     - `http://localhost:8000` (local development)
+6. Copy the Client ID and update `GOOGLE_CLIENT_ID` in `docs/script.js` if different
 
-5.  **Add the API Key to GitHub Secrets:**
-    - In your repository, go to `Settings` > `Secrets and variables` > `Actions`.
-    - Click `New repository secret`.
-    - Name the secret `YOUTUBE_API_KEY`.
-    - Paste your API key as the value.
+### 2. Deploy
 
-## Configuration
+1. Fork or clone this repository
+2. Enable GitHub Pages: Settings > Pages > Deploy from branch `main`, folder `/docs`
+3. Visit `https://YOUR_USERNAME.github.io/mytubes/`
+4. Click "Sign in with Google" and authorize
 
-### Adding or Removing Channels
+### 3. Local Development
 
-To change which channels are being monitored, simply edit the `data/channels.json` file. You will need the `channel_id` for each channel you want to add. You can often find this in the URL of the channel's homepage.
-
-The format for each channel is:
-```json
-{
-  "name": "Channel Name",
-  "channel_id": "UCxxxxxxxxxxxxxxxxx",
-  "handle": "@channelhandle",
-  "description": "Brief description of the channel"
-}
+```bash
+python -m http.server 8000 --directory docs
 ```
 
-Commit your changes to `data/channels.json` and push them to the repository. The next time the workflow runs, it will use your updated list.
+Open `http://localhost:8000` in your browser.
 
-## Local Development
+## Usage
 
-To run the project locally for development or testing:
+1. **Sign in** with your Google account
+2. **Review categories**: On first sign-in, channels are auto-categorized based on YouTube topic data. Adjust assignments in the suggestion modal.
+3. **Browse videos**: Use category tabs to filter, search bar to find specific content
+4. **Manage categories**: Click the gear icon to create/rename/delete categories and reassign channels
+5. **Refresh**: Click the refresh button to re-fetch latest videos
+6. **Re-sync**: In settings, use "Re-sync Subscriptions" to pick up new subscriptions
 
-1.  **Clone the repository and navigate into it:**
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/youtube-channel-monitor.git
-    cd youtube-channel-monitor
-    ```
+## File Structure
 
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+| File | Description |
+|------|-------------|
+| `docs/index.html` | Main HTML with sign-in page, app layout, settings modal, suggestion modal |
+| `docs/script.js` | OAuth, YouTube API calls, category management, shorts filter, caching, rendering |
+| `docs/style.css` | Dark theme styles, category tabs, modals, skeleton loading, responsive grid |
 
-3.  **Set the environment variable:**
-    You can export it in your shell:
-    ```bash
-    export YOUTUBE_API_KEY="YOUR_API_KEY_HERE"
-    ```
+## Cache Behavior
 
-4.  **Run the Python script:**
-    ```bash
-    python scripts/fetch_latest_videos.py
-    ```
-    This will generate/update the `docs/videos.json` file.
-
-5.  **Serve the website locally:**
-    You can use any local web server. A simple one comes with Python:
-    ```bash
-    python -m http.server 8000 --directory docs
-    ```
-    Now, open `http://localhost:8000` in your web browser to see the site.
+| Data | TTL | Storage Key |
+|------|-----|-------------|
+| Subscriptions + channel details | 24 hours | `mytubes_subscriptions` |
+| Video data | 30 minutes | `mytubes_videos` |
+| Category assignments | No expiry | `mytubes_categories` |
+| OAuth token | ~1 hour (from Google) | `yt_access_token` |

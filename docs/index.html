@@ -3,23 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Channel Monitor</title>
+    <title>MyTubes</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-    <header>
-        <h1>YouTube Channel Monitor</h1>
-        <div class="header-controls">
-            <input type="search" id="search-bar" placeholder="Search videos...">
-            <p id="last-updated">Last updated: Loading...</p>
+    <!-- Sign-in page (shown when not authenticated) -->
+    <div id="sign-in-page" class="sign-in-page">
+        <div class="sign-in-container">
+            <h1>MyTubes</h1>
+            <p class="sign-in-subtitle">Your personal, distraction-free YouTube frontend</p>
+            <p class="sign-in-description">
+                Sign in with Google to pull your YouTube subscriptions, filter out Shorts,
+                and organize channels into categories.
+            </p>
+            <button id="sign-in-btn" class="sign-in-btn">Sign in with Google</button>
         </div>
-    </header>
-    <main id="video-grid-container">
-        <!-- Video cards will be injected here by script.js -->
-    </main>
-    <footer>
-        <p>Powered by the YouTube Data API. Created by Jules.</p>
-    </footer>
-    <script src="script.js" defer></script>
+    </div>
+
+    <!-- Main app (hidden until authenticated) -->
+    <div id="app" class="app" style="display: none;">
+        <header>
+            <h1>MyTubes</h1>
+            <div class="header-controls">
+                <input type="search" id="search-bar" placeholder="Search videos...">
+                <button id="refresh-btn" class="icon-btn" title="Refresh videos">&#x21bb;</button>
+                <img id="user-avatar" class="user-avatar" src="" alt="User" title="Signed in">
+                <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+                <button id="sign-out-btn" class="icon-btn" title="Sign out">&#x2192;</button>
+            </div>
+        </header>
+
+        <nav id="category-tabs" class="category-tabs">
+            <button class="category-tab active" data-category="all">All</button>
+        </nav>
+
+        <main id="video-grid-container">
+            <!-- Video cards injected by script.js -->
+        </main>
+
+        <footer>
+            <p>Powered by the YouTube Data API</p>
+        </footer>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="settings-close-btn" class="modal-close">&times;</button>
+            </div>
+
+            <div class="settings-section">
+                <h3>Categories</h3>
+                <p class="settings-note">Assign your subscribed channels to categories</p>
+                <div id="category-manager">
+                    <div class="category-actions">
+                        <input type="text" id="new-category-input" placeholder="New category name...">
+                        <button id="add-category-btn" class="action-btn">Add</button>
+                    </div>
+                    <div id="category-list"></div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Channel Assignments</h3>
+                <p class="settings-note">Drag or use dropdowns to assign channels to categories</p>
+                <div id="channel-assignments"></div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Sync &amp; Cache</h3>
+                <button id="resync-subs-btn" class="action-btn">Re-sync Subscriptions</button>
+                <button id="clear-cache-btn" class="action-btn secondary">Clear Cache</button>
+                <p id="sync-status" class="settings-status"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-suggest modal (shown after first subscription sync) -->
+    <div id="suggest-modal" class="modal">
+        <div class="modal-content suggest-modal-content">
+            <div class="modal-header">
+                <h2>Organize Your Channels</h2>
+                <button id="suggest-close-btn" class="modal-close">&times;</button>
+            </div>
+            <p class="settings-note">We've auto-suggested categories based on your subscriptions. Review and adjust below, then save.</p>
+            <div id="suggest-assignments"></div>
+            <div class="suggest-actions">
+                <button id="suggest-save-btn" class="action-btn">Save Assignments</button>
+                <button id="suggest-skip-btn" class="action-btn secondary">Skip for Now</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
