@@ -180,6 +180,15 @@ header h1 {
 #video-grid-container {
     padding: 1.5rem 2rem;
     min-height: 50vh;
+    transition: padding-bottom 0.3s ease;
+}
+
+.chat-open #video-grid-container {
+    padding-bottom: 420px;
+}
+
+.chat-open footer {
+    padding-bottom: 410px;
 }
 
 .video-grid {
@@ -674,6 +683,37 @@ header h1 {
     align-self: center;
     font-size: 0.8rem;
     font-style: italic;
+}
+
+.chat-msg-collapsed {
+    max-height: 4.5em;
+    overflow: hidden;
+    position: relative;
+}
+
+.chat-msg-collapsed::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1.5em;
+    background: linear-gradient(transparent, var(--bg-color));
+    pointer-events: none;
+}
+
+.chat-msg-expand {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.1rem 0.75rem;
+    align-self: flex-start;
+}
+
+.chat-msg-expand:hover {
+    text-decoration: underline;
 }
 
 .chat-thinking {

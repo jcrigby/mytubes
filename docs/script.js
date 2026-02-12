@@ -954,8 +954,30 @@ function addChatMessage(role, text) {
     const container = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.className = `chat-msg ${role}`;
-    div.textContent = text;
-    container.appendChild(div);
+
+    // Render newlines as <br> (escape HTML first)
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    div.innerHTML = escaped.replace(/\n/g, '<br>');
+
+    // Collapse long messages (more than 4 lines / ~200 chars)
+    const lineCount = text.split('\n').length;
+    if (role === 'assistant' && (lineCount > 4 || text.length > 200)) {
+        div.classList.add('chat-msg-collapsed');
+        const expandBtn = document.createElement('button');
+        expandBtn.className = 'chat-msg-expand';
+        expandBtn.textContent = 'Show more';
+        expandBtn.addEventListener('click', () => {
+            div.classList.toggle('chat-msg-collapsed');
+            expandBtn.textContent = div.classList.contains('chat-msg-collapsed') ? 'Show more' : 'Show less';
+        });
+        div.after(expandBtn);
+        // Need to append both to container
+        container.appendChild(div);
+        container.appendChild(expandBtn);
+    } else {
+        container.appendChild(div);
+    }
+
     container.scrollTop = container.scrollHeight;
 }
 
@@ -1105,6 +1127,7 @@ async function sendChatMessage(userText) {
 function toggleChatPanel() {
     const panel = document.getElementById('chat-panel');
     panel.classList.toggle('open');
+    document.getElementById('app').classList.toggle('chat-open', panel.classList.contains('open'));
     if (panel.classList.contains('open')) {
         updateChatUI();
         document.getElementById('chat-input').focus();
@@ -1205,6 +1228,7 @@ function setupEventListeners() {
     document.getElementById('chat-toggle-btn').addEventListener('click', toggleChatPanel);
     document.getElementById('chat-close-btn').addEventListener('click', () => {
         document.getElementById('chat-panel').classList.remove('open');
+        document.getElementById('app').classList.remove('chat-open');
     });
     document.getElementById('chat-connect-btn').addEventListener('click', startOpenRouterAuth);
     document.getElementById('chat-send-btn').addEventListener('click', () => {
@@ -1231,6 +1255,7 @@ function setupEventListeners() {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
             document.getElementById('chat-panel').classList.remove('open');
+            document.getElementById('app').classList.remove('chat-open');
         }
     });
 }
