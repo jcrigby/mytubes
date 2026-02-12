@@ -64,7 +64,7 @@ function startAuth() {
         alert('Google Sign-In is still loading. Please try again in a moment.');
         return;
     }
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    tokenClient.requestAccessToken({ prompt: '' });
 }
 
 function silentAuth() {
