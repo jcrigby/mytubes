@@ -147,6 +147,7 @@ header h1 {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    align-items: center;
 }
 
 .category-tabs::-webkit-scrollbar {
@@ -179,15 +180,19 @@ header h1 {
 
 .view-toggle-spacer {
     flex: 1;
+    min-width: 0.5rem;
 }
 
 .view-toggle {
     display: flex;
     align-items: center;
     gap: 2px;
-    margin-left: auto;
     flex-shrink: 0;
     padding: 0.4rem 0;
+    position: sticky;
+    right: 0;
+    background: var(--card-bg-color);
+    padding-left: 1rem;
 }
 
 .view-toggle-btn {
