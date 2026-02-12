@@ -175,6 +175,133 @@ header h1 {
     font-weight: 600;
 }
 
+/* ==================== View Toggle ==================== */
+
+.view-toggle-spacer {
+    flex: 1;
+}
+
+.view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 0.4rem 0;
+}
+
+.view-toggle-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted-color);
+    padding: 0.35rem 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.view-toggle-btn:first-child {
+    border-radius: 6px 0 0 6px;
+}
+
+.view-toggle-btn:last-child {
+    border-radius: 0 6px 6px 0;
+    border-left: none;
+}
+
+.view-toggle-btn:hover {
+    color: var(--text-color);
+    border-color: var(--text-muted-color);
+}
+
+.view-toggle-btn.active {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    background: rgba(187, 134, 252, 0.1);
+}
+
+/* ==================== Channel View ==================== */
+
+.channel-view-layout {
+    display: flex;
+    gap: 0;
+    min-height: 60vh;
+}
+
+.channel-list-panel {
+    width: 280px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-color);
+    background: var(--card-bg-color);
+    border-radius: 8px 0 0 8px;
+}
+
+.channel-videos-panel {
+    flex: 1;
+    overflow-y: auto;
+    min-width: 0;
+    padding: 0 0 0 1.5rem;
+}
+
+.channel-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.channel-list-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.channel-list-item.active {
+    background: rgba(187, 134, 252, 0.1);
+    border-left-color: var(--accent-color);
+}
+
+.channel-list-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--skeleton-color);
+}
+
+.channel-list-name {
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.channel-videos-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.channel-videos-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.channel-videos-header-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
 /* ==================== Video Grid ==================== */
 
 #video-grid-container {
@@ -826,6 +953,22 @@ footer {
     .modal-content {
         padding: 1.5rem;
         margin-top: 1rem;
+    }
+
+    .channel-view-layout {
+        flex-direction: column;
+    }
+
+    .channel-list-panel {
+        width: 100%;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 8px 8px 0 0;
+    }
+
+    .channel-videos-panel {
+        padding: 1rem 0 0 0;
     }
 }
 

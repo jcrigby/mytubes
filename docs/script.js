@@ -22,6 +22,8 @@ let allVideos = []; // video objects from YouTube API
 let categories = { categories: [] }; // { categories: [{ id, name, channelIds }] }
 let activeCategory = 'all';
 let searchQuery = '';
+let viewMode = 'videos'; // 'videos' or 'channels'
+let selectedChannelId = null;
 let chatMessages = []; // { role: 'user'|'assistant', content: string }
 
 // ==================== OAuth Module ====================
@@ -482,7 +484,7 @@ async function loadEverything() {
         const cachedVideos = getCached('mytubes_videos');
         if (cachedVideos) {
             allVideos = cachedVideos;
-            renderVideos();
+            renderView();
         } else {
             await refreshVideos();
         }
@@ -537,7 +539,7 @@ async function refreshVideos() {
     if (videoIds.length === 0) {
         allVideos = [];
         setCache('mytubes_videos', allVideos, VIDEOS_TTL);
-        renderVideos();
+        renderView();
         return;
     }
 
@@ -551,7 +553,7 @@ async function refreshVideos() {
     allVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
     setCache('mytubes_videos', allVideos, VIDEOS_TTL);
-    renderVideos();
+    renderView();
 }
 
 function loadUserAvatar() {
@@ -644,7 +646,7 @@ function saveSuggestions() {
     saveCategories();
     document.getElementById('suggest-modal').classList.remove('active');
     renderCategoryTabs();
-    renderVideos();
+    renderView();
 }
 
 // ==================== Rendering ====================
@@ -703,15 +705,40 @@ function renderCategoryTabs() {
         tabs += `<button class="category-tab${activeCategory === 'uncategorized' ? ' active' : ''}" data-category="uncategorized">Uncategorized</button>`;
     }
 
+    // View toggle buttons
+    tabs += `<span class="view-toggle-spacer"></span>`;
+    tabs += `<div class="view-toggle">`;
+    tabs += `<button class="view-toggle-btn${viewMode === 'videos' ? ' active' : ''}" data-view="videos" title="Video grid">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+    </button>`;
+    tabs += `<button class="view-toggle-btn${viewMode === 'channels' ? ' active' : ''}" data-view="channels" title="Channel list">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="3" height="3" rx="1.5"/><rect x="6" y="2.5" width="9" height="2" rx="1"/><rect x="1" y="6.5" width="3" height="3" rx="1.5"/><rect x="6" y="7" width="9" height="2" rx="1"/><rect x="1" y="11" width="3" height="3" rx="1.5"/><rect x="6" y="11.5" width="9" height="2" rx="1"/></svg>
+    </button>`;
+    tabs += `</div>`;
+
     tabsContainer.innerHTML = tabs;
 
     // Attach click handlers
     tabsContainer.querySelectorAll('.category-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             activeCategory = tab.dataset.category;
+            selectedChannelId = null;
             tabsContainer.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            renderVideos();
+            renderView();
+        });
+    });
+
+    // View toggle handlers
+    tabsContainer.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const newMode = btn.dataset.view;
+            if (newMode === viewMode) return;
+            viewMode = newMode;
+            if (viewMode === 'videos') selectedChannelId = null;
+            tabsContainer.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderView();
         });
     });
 }
@@ -743,6 +770,176 @@ function getFilteredVideos() {
     }
 
     return videos;
+}
+
+function renderView() {
+    if (viewMode === 'channels') {
+        renderChannelView();
+    } else {
+        renderVideos();
+    }
+}
+
+function getFilteredChannels() {
+    let channels = [...allSubscriptions].sort((a, b) => a.title.localeCompare(b.title));
+
+    // Filter by category
+    if (activeCategory !== 'all') {
+        if (activeCategory === 'uncategorized') {
+            const assignedChannels = new Set(categories.categories.flatMap(c => c.channelIds));
+            channels = channels.filter(ch => !assignedChannels.has(ch.channelId));
+        } else {
+            const cat = categories.categories.find(c => c.id === activeCategory);
+            if (cat) {
+                const channelSet = new Set(cat.channelIds);
+                channels = channels.filter(ch => channelSet.has(ch.channelId));
+            }
+        }
+    }
+
+    // Filter by search
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        channels = channels.filter(ch => ch.title.toLowerCase().includes(q));
+    }
+
+    return channels;
+}
+
+function renderChannelView() {
+    const container = document.getElementById('video-grid-container');
+    const channels = getFilteredChannels();
+
+    // Auto-select first channel if none selected or selected not in filtered list
+    if (!selectedChannelId || !channels.find(ch => ch.channelId === selectedChannelId)) {
+        selectedChannelId = channels.length > 0 ? channels[0].channelId : null;
+    }
+
+    // Build channel list HTML
+    const channelListHtml = channels.length === 0
+        ? '<p class="empty-message">No channels match your filters.</p>'
+        : channels.map(ch => `
+            <div class="channel-list-item${ch.channelId === selectedChannelId ? ' active' : ''}" data-channel-id="${ch.channelId}">
+                <img class="channel-list-thumb" src="${ch.thumbnail}" alt="" loading="lazy">
+                <span class="channel-list-name">${escapeHtml(ch.title)}</span>
+            </div>
+        `).join('');
+
+    // Build video grid for selected channel
+    let videoPanelHtml = '';
+    if (selectedChannelId) {
+        const selectedChannel = allSubscriptions.find(s => s.channelId === selectedChannelId);
+        const channelVideos = allVideos.filter(v => v.channelId === selectedChannelId);
+        const channelThumbs = {};
+        for (const sub of allSubscriptions) {
+            channelThumbs[sub.channelId] = sub.thumbnail;
+        }
+
+        const headerHtml = selectedChannel
+            ? `<div class="channel-videos-header">
+                <img class="channel-videos-header-thumb" src="${selectedChannel.thumbnail}" alt="">
+                <h2>${escapeHtml(selectedChannel.title)}</h2>
+               </div>`
+            : '';
+
+        if (channelVideos.length === 0) {
+            videoPanelHtml = headerHtml + '<p class="empty-message">No videos from this channel.</p>';
+        } else {
+            videoPanelHtml = headerHtml + '<div class="video-grid">' +
+                channelVideos.map(video => {
+                    const channelThumb = channelThumbs[video.channelId] || '';
+                    return `
+                        <a href="https://www.youtube.com/watch?v=${video.videoId}" target="_blank" class="video-card" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+                            <div class="thumbnail-container">
+                                <img src="${video.thumbnail}" alt="" loading="lazy">
+                                <span class="duration-badge">${formatDuration(video.duration)}</span>
+                            </div>
+                            <div class="video-info">
+                                <img class="channel-thumb" src="${channelThumb}" alt="">
+                                <div class="video-text">
+                                    <h3 class="video-title">${escapeHtml(video.title)}</h3>
+                                    <p class="video-channel">${escapeHtml(video.channelTitle)}</p>
+                                    <div class="video-meta">
+                                        <span>${formatViewCount(video.viewCount)}</span>
+                                        <span>${formatDate(video.publishedAt)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                }).join('') +
+                '</div>';
+        }
+    } else {
+        videoPanelHtml = '<p class="empty-message">Select a channel to view its videos.</p>';
+    }
+
+    container.innerHTML = `
+        <div class="channel-view-layout">
+            <div class="channel-list-panel">${channelListHtml}</div>
+            <div class="channel-videos-panel">${videoPanelHtml}</div>
+        </div>
+    `;
+
+    // Attach click handlers to channel list items
+    container.querySelectorAll('.channel-list-item').forEach(item => {
+        item.addEventListener('click', () => {
+            selectedChannelId = item.dataset.channelId;
+            // Update active state in list without full re-render
+            container.querySelectorAll('.channel-list-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            // Re-render just the right panel
+            renderChannelVideosPanel();
+        });
+    });
+}
+
+function renderChannelVideosPanel() {
+    const panel = document.querySelector('.channel-videos-panel');
+    if (!panel || !selectedChannelId) return;
+
+    const selectedChannel = allSubscriptions.find(s => s.channelId === selectedChannelId);
+    const channelVideos = allVideos.filter(v => v.channelId === selectedChannelId);
+    const channelThumbs = {};
+    for (const sub of allSubscriptions) {
+        channelThumbs[sub.channelId] = sub.thumbnail;
+    }
+
+    const headerHtml = selectedChannel
+        ? `<div class="channel-videos-header">
+            <img class="channel-videos-header-thumb" src="${selectedChannel.thumbnail}" alt="">
+            <h2>${escapeHtml(selectedChannel.title)}</h2>
+           </div>`
+        : '';
+
+    if (channelVideos.length === 0) {
+        panel.innerHTML = headerHtml + '<p class="empty-message">No videos from this channel.</p>';
+    } else {
+        panel.innerHTML = headerHtml + '<div class="video-grid">' +
+            channelVideos.map(video => {
+                const channelThumb = channelThumbs[video.channelId] || '';
+                return `
+                    <a href="https://www.youtube.com/watch?v=${video.videoId}" target="_blank" class="video-card" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+                        <div class="thumbnail-container">
+                            <img src="${video.thumbnail}" alt="" loading="lazy">
+                            <span class="duration-badge">${formatDuration(video.duration)}</span>
+                        </div>
+                        <div class="video-info">
+                            <img class="channel-thumb" src="${channelThumb}" alt="">
+                            <div class="video-text">
+                                <h3 class="video-title">${escapeHtml(video.title)}</h3>
+                                <p class="video-channel">${escapeHtml(video.channelTitle)}</p>
+                                <div class="video-meta">
+                                    <span>${formatViewCount(video.viewCount)}</span>
+                                    <span>${formatDate(video.publishedAt)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                `;
+            }).join('') +
+            '</div>';
+    }
 }
 
 function renderVideos() {
@@ -847,7 +1044,7 @@ function renderCategoryList() {
             saveCategories();
             renderSettingsModal();
             renderCategoryTabs();
-            renderVideos();
+            renderView();
         });
     });
 }
@@ -885,7 +1082,7 @@ function renderChannelAssignments() {
         select.addEventListener('change', () => {
             assignChannelToCategory(select.dataset.channelId, select.value);
             renderCategoryTabs();
-            renderVideos();
+            renderView();
         });
     });
 }
@@ -1045,7 +1242,7 @@ function executeActions(actions) {
     }
     saveCategories();
     renderCategoryTabs();
-    renderVideos();
+    renderView();
     return results;
 }
 
@@ -1146,7 +1343,7 @@ function setupEventListeners() {
     // Search
     document.getElementById('search-bar').addEventListener('input', (e) => {
         searchQuery = e.target.value.trim();
-        renderVideos();
+        renderView();
     });
 
     // Refresh
