@@ -435,11 +435,8 @@ function saveCategories() {
     debouncedDriveSave();
 }
 
-function getCategoryForChannel(channelId) {
-    for (const cat of categories.categories) {
-        if (cat.channelIds.includes(channelId)) return cat;
-    }
-    return null;
+function getCategoriesForChannel(channelId) {
+    return categories.categories.filter(cat => cat.channelIds.includes(channelId));
 }
 
 function ensureCategory(name) {
@@ -453,14 +450,19 @@ function ensureCategory(name) {
 }
 
 function assignChannelToCategory(channelId, categoryId) {
-    // Remove from all categories first
-    for (const cat of categories.categories) {
-        cat.channelIds = cat.channelIds.filter(id => id !== channelId);
-    }
-    // Add to target
     if (categoryId && categoryId !== 'uncategorized') {
         const cat = categories.categories.find(c => c.id === categoryId);
-        if (cat) cat.channelIds.push(channelId);
+        if (cat && !cat.channelIds.includes(channelId)) {
+            cat.channelIds.push(channelId);
+        }
+    }
+    saveCategories();
+}
+
+function removeChannelFromCategory(channelId, categoryId) {
+    const cat = categories.categories.find(c => c.id === categoryId);
+    if (cat) {
+        cat.channelIds = cat.channelIds.filter(id => id !== channelId);
     }
     saveCategories();
 }
@@ -742,10 +744,6 @@ function showSuggestModal(suggestions) {
 
 function saveSuggestions() {
     const selects = document.querySelectorAll('.suggest-category-select');
-    // Reset all channel assignments
-    for (const cat of categories.categories) {
-        cat.channelIds = [];
-    }
 
     for (const select of selects) {
         const channelId = select.dataset.channelId;
@@ -808,7 +806,7 @@ function formatViewCount(count) {
 
 function renderCategoryTabs() {
     const tabsContainer = document.getElementById('category-tabs');
-    const hasUncategorized = allSubscriptions.some(s => !getCategoryForChannel(s.channelId));
+    const hasUncategorized = allSubscriptions.some(s => !getCategoriesForChannel(s.channelId).length);
 
     let tabs = '<button class="category-tab' + (activeCategory === 'all' ? ' active' : '') + '" data-category="all">All</button>';
 
@@ -1171,31 +1169,36 @@ function renderChannelAssignments() {
         return;
     }
 
-    const categoryOptions = [
-        '<option value="uncategorized">Uncategorized</option>',
-        ...categories.categories.map(c => `<option value="${c.id}">${c.name}</option>`)
-    ].join('');
-
     container.innerHTML = allSubscriptions
         .sort((a, b) => a.title.localeCompare(b.title))
         .map(sub => {
-            const currentCat = getCategoryForChannel(sub.channelId);
-            const currentId = currentCat ? currentCat.id : 'uncategorized';
+            const currentCats = getCategoriesForChannel(sub.channelId);
+            const currentIds = new Set(currentCats.map(c => c.id));
+            const checkboxes = categories.categories.map(c => {
+                const checked = currentIds.has(c.id) ? 'checked' : '';
+                return `<label class="channel-assign-checkbox">
+                    <input type="checkbox" data-channel-id="${sub.channelId}" data-category-id="${c.id}" ${checked}>
+                    <span>${c.name}</span>
+                </label>`;
+            }).join('');
             return `
                 <div class="channel-assignment">
                     <img class="channel-assign-thumb" src="${sub.thumbnail}" alt="">
                     <span class="channel-assign-name">${sub.title}</span>
-                    <select class="channel-assign-select" data-channel-id="${sub.channelId}">
-                        ${categoryOptions.replace(`value="${currentId}"`, `value="${currentId}" selected`)}
-                    </select>
+                    <div class="channel-assign-categories">${checkboxes}</div>
                 </div>
             `;
         }).join('');
 
     // Change handlers
-    container.querySelectorAll('.channel-assign-select').forEach(select => {
-        select.addEventListener('change', () => {
-            assignChannelToCategory(select.dataset.channelId, select.value);
+    container.querySelectorAll('.channel-assign-categories input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                assignChannelToCategory(cb.dataset.channelId, cb.dataset.categoryId);
+            } else {
+                removeChannelFromCategory(cb.dataset.channelId, cb.dataset.categoryId);
+            }
+            renderCategoryList();
             renderCategoryTabs();
             renderView();
         });
@@ -1210,8 +1213,10 @@ function buildCategorySystemPrompt() {
     ).join('\n') || '(none)';
 
     const subList = allSubscriptions.map(s => {
-        const cat = getCategoryForChannel(s.channelId);
-        const catLabel = cat ? `${cat.name} (${cat.id})` : 'Uncategorized';
+        const cats = getCategoriesForChannel(s.channelId);
+        const catLabel = cats.length > 0
+            ? cats.map(c => `${c.name} (${c.id})`).join(', ')
+            : 'Uncategorized';
         return `- ${s.title} (id: ${s.channelId}) → ${catLabel}`;
     }).join('\n') || '(none)';
 
@@ -1232,11 +1237,14 @@ Available actions:
 - {"action": "delete_category", "id": "category-id"}
 - {"action": "rename_category", "id": "category-id", "name": "New Name"}
 - {"action": "assign_channels", "channelIds": ["UC..."], "categoryId": "category-id"}
+- {"action": "unassign_channels", "channelIds": ["UC..."], "categoryId": "category-id"}
 
 Rules:
 - Category IDs are lowercase with hyphens (e.g. "woodworking", "diy-home").
+- Channels can belong to multiple categories. assign_channels adds without removing from others.
+- Use unassign_channels to remove a channel from a specific category.
 - When assigning channels, use the exact channel IDs from the subscription list.
-- When moving channels to a new category, create it first if it doesn't exist.
+- When assigning channels to a new category, create it first if it doesn't exist.
 - You can include multiple actions in one block. They execute in order.
 - If the user asks a question that doesn't require changes, just answer without an action block.
 - Be concise in your explanations.`;
@@ -1346,6 +1354,18 @@ function executeActions(actions) {
                         assignChannelToCategory(channelId, act.categoryId);
                     }
                     results.push(`Assigned ${act.channelIds.length} channel(s) to "${targetCat.name}"`);
+                } else {
+                    results.push(`Category "${act.categoryId}" not found`);
+                }
+                break;
+            }
+            case 'unassign_channels': {
+                const fromCat = categories.categories.find(c => c.id === act.categoryId);
+                if (fromCat) {
+                    for (const channelId of act.channelIds) {
+                        removeChannelFromCategory(channelId, act.categoryId);
+                    }
+                    results.push(`Removed ${act.channelIds.length} channel(s) from "${fromCat.name}"`);
                 } else {
                     results.push(`Category "${act.categoryId}" not found`);
                 }

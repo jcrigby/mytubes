@@ -688,7 +688,34 @@ header h1 {
     white-space: nowrap;
 }
 
-.channel-assign-select,
+.channel-assign-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.6rem;
+    flex-shrink: 0;
+    max-width: 300px;
+}
+
+.channel-assign-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--text-muted-color);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.channel-assign-checkbox input[type="checkbox"] {
+    accent-color: var(--accent-color);
+    cursor: pointer;
+    margin: 0;
+}
+
+.channel-assign-checkbox:has(input:checked) span {
+    color: var(--text-color);
+}
+
 .suggest-category-select {
     padding: 0.3rem 0.5rem;
     border-radius: 6px;
@@ -699,7 +726,6 @@ header h1 {
     flex-shrink: 0;
 }
 
-.channel-assign-select:focus,
 .suggest-category-select:focus {
     outline: none;
     border-color: var(--accent-color);
