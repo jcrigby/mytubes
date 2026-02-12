@@ -1037,11 +1037,18 @@ async function sendChatMessage(userText) {
         return;
     }
 
+    // Disable input while processing
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+
     // Show thinking indicator
     const thinkingDiv = document.createElement('div');
-    thinkingDiv.className = 'chat-msg system';
-    thinkingDiv.textContent = 'Thinking...';
+    thinkingDiv.className = 'chat-msg system chat-thinking';
+    thinkingDiv.innerHTML = '<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span> Thinking';
     document.getElementById('chat-messages').appendChild(thinkingDiv);
+    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
 
     try {
         const systemPrompt = buildCategorySystemPrompt();
@@ -1088,6 +1095,10 @@ async function sendChatMessage(userText) {
         thinkingDiv.remove();
         addChatMessage('system', `Error: ${err.message}`);
         console.error('Chat error:', err);
+    } finally {
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatInput.focus();
     }
 }
 
