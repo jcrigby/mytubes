@@ -2,7 +2,12 @@
 
 const GOOGLE_CLIENT_ID = '339196755594-oajh6pqn0o178o9ipsvg7d7r86dg2sv5.apps.googleusercontent.com';
 const YOUTUBE_API = 'https://www.googleapis.com/youtube/v3';
-const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/drive.appdata';
+
+// Google Drive appdata
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
+const CATEGORIES_FILENAME = 'categories.json';
 
 // OpenRouter
 const OPENROUTER_AUTH_URL = 'https://openrouter.ai/auth';
@@ -25,6 +30,8 @@ let searchQuery = '';
 let viewMode = 'videos'; // 'videos' or 'channels'
 let selectedChannelId = null;
 let chatMessages = []; // { role: 'user'|'assistant', content: string }
+let driveFileId = null;
+let driveSaveTimer = null;
 
 // ==================== OAuth Module ====================
 
@@ -87,6 +94,11 @@ function signOut() {
     }
     localStorage.removeItem('yt_access_token');
     localStorage.removeItem('yt_token_expiry');
+    driveFileId = null;
+    if (driveSaveTimer) {
+        clearTimeout(driveSaveTimer);
+        driveSaveTimer = null;
+    }
     showSignIn();
 }
 
@@ -391,17 +403,36 @@ function suggestCategoryForChannel(topicCategories) {
     return 'Uncategorized';
 }
 
-function loadCategories() {
+async function loadCategories() {
+    // Load from localStorage first (instant cache)
     const stored = localStorage.getItem('mytubes_categories');
     if (stored) {
         categories = JSON.parse(stored);
     } else {
         categories = { categories: [] };
     }
+
+    // Try loading from Drive (authoritative source)
+    try {
+        const driveData = await readDriveCategories();
+        if (driveData && driveData.categories) {
+            // Drive has data — use it and update localStorage
+            categories = driveData;
+            localStorage.setItem('mytubes_categories', JSON.stringify(categories));
+        } else if (stored && categories.categories.length > 0) {
+            // Drive is empty but localStorage has data — migrate to Drive
+            writeDriveCategories(categories).catch(err =>
+                console.warn('Drive migration failed:', err.message)
+            );
+        }
+    } catch (err) {
+        console.warn('Drive load failed, using localStorage:', err.message);
+    }
 }
 
 function saveCategories() {
     localStorage.setItem('mytubes_categories', JSON.stringify(categories));
+    debouncedDriveSave();
 }
 
 function getCategoryForChannel(channelId) {
@@ -432,6 +463,90 @@ function assignChannelToCategory(channelId, categoryId) {
         if (cat) cat.channelIds.push(channelId);
     }
     saveCategories();
+}
+
+// ==================== Drive Appdata Storage ====================
+
+async function findDriveFile() {
+    try {
+        const data = await apiRequest(
+            `${DRIVE_API}/files?spaces=appDataFolder&q=name='${CATEGORIES_FILENAME}'&fields=files(id)`
+        );
+        if (data.files && data.files.length > 0) {
+            driveFileId = data.files[0].id;
+            return driveFileId;
+        }
+        return null;
+    } catch (err) {
+        console.warn('Drive findFile failed:', err.message);
+        return null;
+    }
+}
+
+async function readDriveCategories() {
+    try {
+        const fileId = await findDriveFile();
+        if (!fileId) return null;
+        const data = await apiRequest(`${DRIVE_API}/files/${fileId}?alt=media`);
+        return data;
+    } catch (err) {
+        console.warn('Drive read failed:', err.message);
+        return null;
+    }
+}
+
+async function writeDriveCategories(data) {
+    const token = getAccessToken();
+    if (!token) return;
+
+    const jsonBody = JSON.stringify(data);
+
+    if (driveFileId) {
+        // Update existing file
+        const resp = await fetch(`${DRIVE_UPLOAD_API}/files/${driveFileId}?uploadType=media`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: jsonBody
+        });
+        if (!resp.ok) throw new Error(`Drive update failed: ${resp.status}`);
+    } else {
+        // Create new file with multipart upload
+        const metadata = {
+            name: CATEGORIES_FILENAME,
+            parents: ['appDataFolder']
+        };
+        const boundary = 'mytubes_boundary';
+        const body =
+            `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+            JSON.stringify(metadata) +
+            `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+            jsonBody +
+            `\r\n--${boundary}--`;
+
+        const resp = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': `multipart/related; boundary=${boundary}`
+            },
+            body: body
+        });
+        if (!resp.ok) throw new Error(`Drive create failed: ${resp.status}`);
+        const result = await resp.json();
+        driveFileId = result.id;
+    }
+}
+
+function debouncedDriveSave() {
+    if (driveSaveTimer) clearTimeout(driveSaveTimer);
+    driveSaveTimer = setTimeout(() => {
+        writeDriveCategories(categories).catch(err =>
+            console.warn('Drive save failed:', err.message)
+        );
+    }, 2000);
 }
 
 // ==================== Caching Layer ====================
@@ -468,7 +583,7 @@ function clearAllCache() {
 // ==================== Data Loading ====================
 
 async function loadEverything() {
-    loadCategories();
+    await loadCategories();
     showLoadingState();
 
     try {
